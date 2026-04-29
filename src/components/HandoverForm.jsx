@@ -1,156 +1,212 @@
 import { useState } from "react";
+import { checklistItems } from "../data/checklistItems";
+import { createHandover } from "../services/api";
 
 export default function HandoverForm() {
   const [form, setForm] = useState({
-    type: "Onboarding",
+    handoverType: "Onboarding",
+    date: "",
     tenantName: "",
     tenantId: "",
     property: "",
-    manager: "",
-    date: "",
-    access: "",
-    room: "",
-    toilet: "",
-    walls: "",
-    flooring: "",
+    communityManager: "",
+    checklist: {},
+    tenantAck: false,
+    managerAck: false,
   });
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
-  };
-
- const handleSubmit = async () => {
-  try {
-    const response = await fetch(
-      "https://w8gu2fvcy1.execute-api.ap-southeast-1.amazonaws.com/default/tap-handover-api",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      }
-    );
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      console.error(result);
-      alert("Error: " + JSON.stringify(result));
-      return;
-    }
-
-    alert("Submitted successfully!");
-  } catch (error) {
-    console.error(error);
-    alert("Error submitting form. Check console.");
+  function updateField(field, value) {
+    setForm({ ...form, [field]: value });
   }
-};
+
+  function updateChecklist(item, field, value) {
+    setForm({
+      ...form,
+      checklist: {
+        ...form.checklist,
+        [item]: {
+          ...form.checklist[item],
+          [field]: value,
+        },
+      },
+    });
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+
+    try {
+      await createHandover(form);
+      alert("Handover saved to AWS DynamoDB.");
+    } catch (error) {
+      console.error(error);
+      alert("Error submitting form. Check console.");
+    }
+  }
 
   return (
-    <div style={{ padding: "20px" }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{ maxWidth: "1000px", margin: "0 auto", padding: "24px" }}
+    >
       <h2>Onboarding / Offboarding Checklist</h2>
 
-      <select name="type" value={form.type} onChange={handleChange}>
-        <option>Onboarding</option>
-        <option>Offboarding</option>
-      </select>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "12px",
+          marginBottom: "24px",
+        }}
+      >
+        <select
+          value={form.handoverType}
+          onChange={(e) => updateField("handoverType", e.target.value)}
+        >
+          <option>Onboarding</option>
+          <option>Offboarding</option>
+        </select>
 
-      <input
-        name="date"
-        placeholder="Date"
-        value={form.date}
-        onChange={handleChange}
-      />
+        <input
+          type="date"
+          value={form.date}
+          onChange={(e) => updateField("date", e.target.value)}
+        />
 
-      <br /><br />
+        <input
+          placeholder="Tenant Name"
+          value={form.tenantName}
+          onChange={(e) => updateField("tenantName", e.target.value)}
+        />
 
-      <input
-        name="tenantName"
-        placeholder="Tenant Name"
-        value={form.tenantName}
-        onChange={handleChange}
-      />
+        <input
+          placeholder="Tenant ID"
+          value={form.tenantId}
+          onChange={(e) => updateField("tenantId", e.target.value)}
+        />
 
-      <input
-        name="tenantId"
-        placeholder="Tenant ID"
-        value={form.tenantId}
-        onChange={handleChange}
-      />
+        <input
+          placeholder="Property and Unit Address"
+          value={form.property}
+          onChange={(e) => updateField("property", e.target.value)}
+        />
 
-      <br /><br />
+        <input
+          placeholder="Community Manager"
+          value={form.communityManager}
+          onChange={(e) => updateField("communityManager", e.target.value)}
+        />
+      </div>
 
-      <input
-        name="property"
-        placeholder="Property"
-        value={form.property}
-        onChange={handleChange}
-      />
+      {checklistItems.map((section, i) => (
+        <div key={i} style={{ marginBottom: "24px" }}>
+          <h3>{section.section}</h3>
 
-      <input
-        name="manager"
-        placeholder="Community Manager"
-        value={form.manager}
-        onChange={handleChange}
-      />
+          <table
+            border="1"
+            cellPadding="8"
+            style={{ width: "100%", borderCollapse: "collapse" }}
+          >
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Condition / Quantity</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
 
-      <h3>Room Access</h3>
-      <input
-        name="access"
-        placeholder="Access card / key / number"
-        value={form.access}
-        onChange={handleChange}
-      />
+            <tbody>
+              {section.items.map((item) => (
+                <tr key={item}>
+                  <td>{item}</td>
 
-      <h3>Cleanliness</h3>
+                  <td>
+                    {section.type === "radio" &&
+                      section.options.map((option) => (
+                        <label key={option} style={{ marginRight: "12px" }}>
+                          <input
+                            type="radio"
+                            name={item}
+                            value={option}
+                            onChange={(e) =>
+                              updateChecklist(item, "condition", e.target.value)
+                            }
+                          />
+                          {option}
+                        </label>
+                      ))}
+
+                    {section.type === "number" && (
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Qty"
+                        onChange={(e) =>
+                          updateChecklist(item, "quantity", e.target.value)
+                        }
+                      />
+                    )}
+
+                    {section.type === "text" && (
+                      <input
+                        type="text"
+                        placeholder="Enter details"
+                        onChange={(e) =>
+                          updateChecklist(item, "value", e.target.value)
+                        }
+                      />
+                    )}
+
+                    {section.type === "textarea" && (
+                      <textarea
+                        placeholder="Enter details"
+                        onChange={(e) =>
+                          updateChecklist(item, "value", e.target.value)
+                        }
+                      />
+                    )}
+                  </td>
+
+                  <td>
+                    <input
+                      style={{ width: "95%" }}
+                      placeholder="Remarks"
+                      onChange={(e) =>
+                        updateChecklist(item, "remarks", e.target.value)
+                      }
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
 
       <label>
-        Room:
-        <select name="room" value={form.room} onChange={handleChange}>
-          <option value="">Select</option>
-          <option>Clean</option>
-          <option>Not Cleaned</option>
-        </select>
+        <input
+          type="checkbox"
+          checked={form.tenantAck}
+          onChange={(e) => updateField("tenantAck", e.target.checked)}
+        />
+        Tenant acknowledges the room condition
       </label>
 
       <br />
 
       <label>
-        Toilet:
-        <select name="toilet" value={form.toilet} onChange={handleChange}>
-          <option value="">Select</option>
-          <option>Clean</option>
-          <option>Not Cleaned</option>
-        </select>
+        <input
+          type="checkbox"
+          checked={form.managerAck}
+          onChange={(e) => updateField("managerAck", e.target.checked)}
+        />
+        Community Manager verified
       </label>
 
       <br />
-
-      <label>
-        Walls:
-        <select name="walls" value={form.walls} onChange={handleChange}>
-          <option value="">Select</option>
-          <option>Clean</option>
-          <option>Not Cleaned</option>
-        </select>
-      </label>
-
       <br />
 
-      <label>
-        Flooring:
-        <select name="flooring" value={form.flooring} onChange={handleChange}>
-          <option value="">Select</option>
-          <option>Clean</option>
-          <option>Not Cleaned</option>
-        </select>
-      </label>
-
-      <br /><br />
-
-      <button onClick={handleSubmit}>Submit</button>
-    </div>
+      <button type="submit">Submit Handover</button>
+    </form>
   );
 }
