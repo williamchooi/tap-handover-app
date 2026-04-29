@@ -1,174 +1,156 @@
 import { useState } from "react";
-import { checklistItems } from "../data/checklistItems";
 
 export default function HandoverForm() {
   const [form, setForm] = useState({
-    handoverType: "Onboarding",
-    date: "",
+    type: "Onboarding",
     tenantName: "",
     tenantId: "",
     property: "",
-    communityManager: "",
-    checklist: {},
-    tenantAck: false,
-    managerAck: false,
+    manager: "",
+    date: "",
+    access: "",
+    room: "",
+    toilet: "",
+    walls: "",
+    flooring: "",
   });
 
-  function updateField(field, value) {
-    setForm({ ...form, [field]: value });
-  }
-
-  function updateChecklist(item, field, value) {
-    setForm({
-      ...form,
-      checklist: {
-        ...form.checklist,
-        [item]: {
-          ...form.checklist[item],
-          [field]: value,
-        },
-      },
-    });
-  }
-
-function handleSubmit(e) {
-  e.preventDefault();
-
-  const newRecord = {
-    id: Date.now(),
-    ...form,
-    submittedAt: new Date().toISOString(),
-    status: "Submitted",
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
   };
 
-  const existingRecords =
-    JSON.parse(localStorage.getItem("handoverRecords")) || [];
+ const handleSubmit = async () => {
+  try {
+    const response = await fetch(
+      "https://w8gu2fvcy1.execute-api.ap-southeast-1.amazonaws.com/default/tap-handover-api",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      }
+    );
 
-  localStorage.setItem(
-    "handoverRecords",
-    JSON.stringify([...existingRecords, newRecord])
-  );
+    const result = await response.json();
 
-  alert("Handover saved locally.");
-}
+    if (!response.ok) {
+      console.error(result);
+      alert("Error: " + JSON.stringify(result));
+      return;
+    }
+
+    alert("Submitted successfully!");
+  } catch (error) {
+    console.error(error);
+    alert("Error submitting form. Check console.");
+  }
+};
 
   return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: "1000px", margin: "0 auto", padding: "24px" }}>
+    <div style={{ padding: "20px" }}>
       <h2>Onboarding / Offboarding Checklist</h2>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "24px" }}>
-        <select value={form.handoverType} onChange={(e) => updateField("handoverType", e.target.value)}>
-          <option>Onboarding</option>
-          <option>Offboarding</option>
+      <select name="type" value={form.type} onChange={handleChange}>
+        <option>Onboarding</option>
+        <option>Offboarding</option>
+      </select>
+
+      <input
+        name="date"
+        placeholder="Date"
+        value={form.date}
+        onChange={handleChange}
+      />
+
+      <br /><br />
+
+      <input
+        name="tenantName"
+        placeholder="Tenant Name"
+        value={form.tenantName}
+        onChange={handleChange}
+      />
+
+      <input
+        name="tenantId"
+        placeholder="Tenant ID"
+        value={form.tenantId}
+        onChange={handleChange}
+      />
+
+      <br /><br />
+
+      <input
+        name="property"
+        placeholder="Property"
+        value={form.property}
+        onChange={handleChange}
+      />
+
+      <input
+        name="manager"
+        placeholder="Community Manager"
+        value={form.manager}
+        onChange={handleChange}
+      />
+
+      <h3>Room Access</h3>
+      <input
+        name="access"
+        placeholder="Access card / key / number"
+        value={form.access}
+        onChange={handleChange}
+      />
+
+      <h3>Cleanliness</h3>
+
+      <label>
+        Room:
+        <select name="room" value={form.room} onChange={handleChange}>
+          <option value="">Select</option>
+          <option>Clean</option>
+          <option>Not Cleaned</option>
         </select>
-
-        <input type="date" value={form.date} onChange={(e) => updateField("date", e.target.value)} />
-
-        <input placeholder="Tenant Name" value={form.tenantName} onChange={(e) => updateField("tenantName", e.target.value)} />
-
-        <input placeholder="Tenant ID" value={form.tenantId} onChange={(e) => updateField("tenantId", e.target.value)} />
-
-        <input placeholder="Property and Unit Address" value={form.property} onChange={(e) => updateField("property", e.target.value)} />
-
-        <input placeholder="Community Manager" value={form.communityManager} onChange={(e) => updateField("communityManager", e.target.value)} />
-      </div>
-
-      {checklistItems.map((section, i) => (
-        <div key={i} style={{ marginBottom: "24px" }}>
-          <h3>{section.section}</h3>
-
-          <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th style={{ width: "30%" }}>Item</th>
-                <th style={{ width: "35%" }}>Condition / Quantity</th>
-                <th style={{ width: "35%" }}>Remarks</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {section.items.map((item) => (
-                <tr key={item}>
-                  <td>{item}</td>
-
-                  <td>
-                    {section.type === "radio" &&
-                      section.options.map((option) => (
-                        <label key={option} style={{ marginRight: "12px" }}>
-                          <input
-                            type="radio"
-                            name={item}
-                            value={option}
-                            onChange={(e) => updateChecklist(item, "condition", e.target.value)}
-                          />
-                          {option}
-                        </label>
-                      ))}
-
-                    {section.type === "number" && (
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Qty"
-                        onChange={(e) => updateChecklist(item, "quantity", e.target.value)}
-                      />
-                    )}
-
-                    {section.type === "text" && (
-                      <input
-                        type="text"
-                        placeholder="Enter details"
-                        onChange={(e) => updateChecklist(item, "value", e.target.value)}
-                      />
-                    )}
-
-                    {section.type === "textarea" && (
-                      <textarea
-                        placeholder="Enter details"
-                        onChange={(e) => updateChecklist(item, "value", e.target.value)}
-                      />
-                    )}
-                  </td>
-
-                  <td>
-                    <input
-                      style={{ width: "95%" }}
-                      placeholder="Remarks"
-                      onChange={(e) => updateChecklist(item, "remarks", e.target.value)}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
-
-      <div style={{ marginTop: "24px" }}>
-        <label>
-          <input
-            type="checkbox"
-            checked={form.tenantAck}
-            onChange={(e) => updateField("tenantAck", e.target.checked)}
-          />
-          Tenant acknowledges the room condition
-        </label>
-
-        <br />
-
-        <label>
-          <input
-            type="checkbox"
-            checked={form.managerAck}
-            onChange={(e) => updateField("managerAck", e.target.checked)}
-          />
-          Community Manager verified
-        </label>
-      </div>
+      </label>
 
       <br />
 
-      <button type="submit">Submit Handover</button>
-    </form>
+      <label>
+        Toilet:
+        <select name="toilet" value={form.toilet} onChange={handleChange}>
+          <option value="">Select</option>
+          <option>Clean</option>
+          <option>Not Cleaned</option>
+        </select>
+      </label>
+
+      <br />
+
+      <label>
+        Walls:
+        <select name="walls" value={form.walls} onChange={handleChange}>
+          <option value="">Select</option>
+          <option>Clean</option>
+          <option>Not Cleaned</option>
+        </select>
+      </label>
+
+      <br />
+
+      <label>
+        Flooring:
+        <select name="flooring" value={form.flooring} onChange={handleChange}>
+          <option value="">Select</option>
+          <option>Clean</option>
+          <option>Not Cleaned</option>
+        </select>
+      </label>
+
+      <br /><br />
+
+      <button onClick={handleSubmit}>Submit</button>
+    </div>
   );
 }

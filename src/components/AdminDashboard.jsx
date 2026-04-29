@@ -1,22 +1,37 @@
+import { getHandovers, updateHandoverStatus } from "../services/api";
 import { useEffect, useState } from "react";
 
 export default function AdminDashboard() {
   const [records, setRecords] = useState([]);
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("handoverRecords")) || [];
-    setRecords(saved);
-  }, []);
+  async function loadRecords() {
+    try {
+      const data = await getHandovers();
+      setRecords(data);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to load handover records.");
+    }
+  }
 
-  function updateStatus(id, newStatus) {
+  loadRecords();
+}, []);
+
+async function updateStatus(id, newStatus) {
+  try {
+    await updateHandoverStatus(id, newStatus);
+
     const updated = records.map((record) =>
       record.id === id ? { ...record, status: newStatus } : record
     );
 
     setRecords(updated);
-    localStorage.setItem("handoverRecords", JSON.stringify(updated));
+  } catch (error) {
+    console.error(error);
+    alert("Failed to update status.");
   }
-
+}
   return (
     <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "24px" }}>
       <h2>Admin Dashboard</h2>
